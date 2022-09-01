@@ -2,29 +2,24 @@
 
 #include <seqan3/argument_parser/all.hpp>
 
-#include "fastq_conversion.hpp"
+#include "search.hpp"
 
-int main(int argc, char ** argv)
+int parse_command_line(smash_options & options, int const argc, char const * const * argv)
 {
-    seqan3::argument_parser parser{"Fastq-to-Fasta-Converter", argc, argv};
-
-    // Declarations for argument parser
-    std::filesystem::path fastq_file{};
-    std::filesystem::path output_file{};
-    bool verbose = false;
+    seqan3::argument_parser parser{"SMash it!", argc, argv};
 
     // Parser
     parser.info.author = "SeqAn-Team"; // give parser some infos
     parser.info.version = "1.0.0";
-    parser.add_positional_option(fastq_file, "Please provide a fastq file.",
-                                 seqan3::input_file_validator{{"fq","fastq"}}); // Takes a fastq file and validates it
-    //output path as option, otherwise output is printed
-    parser.add_option(output_file, 'o', "output", "The file for fasta output. Default: stdout");
-    parser.add_flag(verbose, 'v', "verbose", "Give more detailed information here."); // example for a flag
+    parser.add_option(options.input_file, 'i', "input", "Please provide a file with one line one file each.");
+    parser.add_option(options.input_file, 'x', "index", "Please provide an index file.");
+    parser.add_option(options.output_file, 'o', "output", "The file for the distances matrix");
+    parser.add_option(options.output_file, 'k', "kemr-size", "The kmer size.");
+    parser.add_option(options.output_file, 's', "sketch-size", "The sketch size.");
 
     try
     {
-         parser.parse();                                                  // trigger command line parsing
+        parser.parse();                                                  // trigger command line parsing
     }
     catch (seqan3::argument_parser_error const & ext)                     // catch user errors
     {
@@ -32,10 +27,21 @@ int main(int argc, char ** argv)
         return -1;
     }
 
-    convert_fastq(fastq_file, output_file); // Call fastq to fasta converter
+    return 0;
+}
 
-    if (verbose) // if flag is set
-        std::cerr << "Conversion was a success. Congrats!\n";
+int main(int argc, char ** argv)
+{
+    smash_options options{};
+    parse_command_line(options, argc, argv);
+
+    std::string line;
+    std::ifstream in{options.input_file};
+
+    while (std::getline(in, line))
+        options.files.push_back(line);
+
+    search(options);
 
     return 0;
 }
