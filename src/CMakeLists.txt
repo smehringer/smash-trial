@@ -10,19 +10,8 @@ target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall
 # An object library (without main) to be used in multiple targets.
 add_library ("${PROJECT_NAME}_lib" STATIC search.cpp)
 target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC "${PROJECT_NAME}_interface")
-
 target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC raptor_interface)
-target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC xxhash)
-target_include_directories ("${PROJECT_NAME}_lib" SYSTEM PUBLIC ${RAPTOR_SUBMODULES_DIR}/simde/simde)
 target_compile_definitions ("${PROJECT_NAME}_lib" PUBLIC "-DRAPTOR_HIBF_HAS_COUNT=1")
-
 
 add_executable ("${PROJECT_NAME}" main.cpp)
 target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib")
-
-target_link_libraries ("${PROJECT_NAME}" PUBLIC raptor_interface)
-target_link_libraries ("${PROJECT_NAME}" PUBLIC xxhash)
-
-target_include_directories ("${PROJECT_NAME}" SYSTEM PUBLIC ${RAPTOR_SUBMODULES_DIR}/simde/simde)
-
-target_compile_definitions ("${PROJECT_NAME}" PUBLIC "-DRAPTOR_HIBF_HAS_COUNT=1")
