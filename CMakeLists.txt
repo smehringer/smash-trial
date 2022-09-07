@@ -26,8 +26,14 @@ set (FontReset "${Esc}[m")
 
 # Add SeqAn3 and Raptor.
 set (RAPTOR_SUBMODULES_DIR "${CMAKE_CURRENT_LIST_DIR}/lib/raptor/lib")
-set (RAPTOR_BUILD_DOC OFF)
-set (RAPTOR_BUILD_TEST OFF)
+set (RAPTOR_BUILD_DOC
+     OFF
+     CACHE BOOL "Build documentation"
+)
+set (RAPTOR_BUILD_TEST
+     OFF
+     CACHE BOOL "Build test"
+)
 add_subdirectory (${CMAKE_CURRENT_LIST_DIR}/lib/raptor)
 
 # Allow to include CMake scripts from seqan3.
