@@ -6,7 +6,7 @@
 
 int parse_command_line(smash_options & options, int const argc, char const * const * argv)
 {
-    seqan3::argument_parser parser{"SMash it!", argc, argv};
+    seqan3::argument_parser parser{"smash", argc, argv};
 
     // Parser
     parser.info.author = "SeqAn-Team"; // give parser some infos
