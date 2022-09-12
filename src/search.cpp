@@ -64,6 +64,7 @@ void search(smash_options const & options)
         }();
 
         std::string result_string{};
+        my_priority_queue<uint64_t> sketch{};
 
         for (auto && filename : filenames | seqan3::views::slice(start, end))
         {
@@ -73,9 +74,12 @@ void search(smash_options const & options)
 
             for (auto && rec : seqan3::sequence_file_input{filename})
             {
-                auto && sketch = sketch_min_hash(rec.sequence(), options.kmer_size, options.sketch_size);
+                if (sketch.empty())
+                    init_sketch(rec.sequence(), options.kmer_size, options.sketch_size, sketch);
+                else
+                    add_to_sketch(rec.sequence(), options.kmer_size, sketch);
 
-                auto & result = counter.bulk_count(sketch);
+                auto & result = counter.bulk_count(sketch.get_underlying_container());
 
                 for (auto && count : result)
                 {
@@ -84,7 +88,6 @@ void search(smash_options const & options)
                     result_string += std::to_string(dist);
                     result_string += '\t';
                 }
-
             }
 
             result_string.back() = '\n';
