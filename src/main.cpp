@@ -12,10 +12,10 @@ int parse_command_line(smash_options & options, int const argc, char const * con
     parser.info.author = "SeqAn-Team"; // give parser some infos
     parser.info.version = "1.0.0";
     parser.add_option(options.input_file, 'i', "input", "Please provide a file with one line one file each.");
-    parser.add_option(options.input_file, 'x', "index", "Please provide an index file.");
+    parser.add_option(options.index_file, 'x', "index", "Please provide an index file.");
     parser.add_option(options.output_file, 'o', "output", "The file for the distances matrix");
-    parser.add_option(options.output_file, 'k', "kemr-size", "The kmer size.");
-    parser.add_option(options.output_file, 's', "sketch-size", "The sketch size.");
+    parser.add_option(options.kmer_size, 'k', "kemr-size", "The kmer size.");
+    parser.add_option(options.sketch_size, 's', "sketch-size", "The sketch size.");
 
     try
     {

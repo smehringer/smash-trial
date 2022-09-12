@@ -49,10 +49,10 @@ void search(smash_options const & options)
         std::string line{"#filenames"};
         for (auto const & filename : options.files)
         {
-            line += filename;
             line += '\t';
+            line += filename;
         }
-        line.back() = '\n';
+        line += '\n';
         synced_out << line;
     }
 
