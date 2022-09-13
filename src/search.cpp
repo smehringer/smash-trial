@@ -11,6 +11,11 @@
 #include "options.hpp"
 #include "sketch.hpp"
 
+struct my_traits : seqan3::sequence_file_input_default_traits_dna
+{
+    using sequence_alphabet = seqan3::dna4; // instead of dna5
+};
+
 void search(smash_options const & options)
 {
     auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
@@ -29,28 +34,16 @@ void search(smash_options const & options)
 
     raptor::sync_out synced_out{options.output_file};
 
-    // {
-    //     size_t position{};
-    //     std::string line{};
-    //     for (auto const & filename : options.files)
-    //     {
-    //         line.clear();
-    //         line = '#';
-    //         line += std::to_string(position);
-    //         line += '\t';
-    //         line += filename;
-    //         line.back() = '\n';
-    //         synced_out << line;
-    //         ++position;
-    //     }
-    // }
-
     { // write header line
         std::string line{"#filenames"};
-        for (auto const & filename : options.files)
+        for (auto const & filenames : index.bin_path())
         {
             line += '\t';
-            line += filename;
+            for (auto const & filename : filenames)
+            {
+                line += filename;
+                line += ';';
+            }
         }
         line += '\n';
         synced_out << line;
@@ -58,39 +51,35 @@ void search(smash_options const & options)
 
     auto worker = [&](size_t const start, size_t const end)
     {
-        auto counter = [&index]()
-        {
-            return index.ibf().template counting_agent<uint16_t>();
-        }();
+        auto counter = index.ibf().template counting_agent<uint16_t>();
 
         std::string result_string{};
-        my_priority_queue<uint64_t> sketch{};
 
         for (auto && filename : filenames | seqan3::views::slice(start, end))
         {
             result_string.clear();
             result_string += filename;
-            result_string += '\t';
 
-            for (auto && rec : seqan3::sequence_file_input{filename})
+            my_priority_queue<uint64_t> sketch{};
+            for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
             {
                 if (sketch.empty())
                     init_sketch(rec.sequence(), options.kmer_size, options.sketch_size, sketch);
                 else
                     add_to_sketch(rec.sequence(), options.kmer_size, sketch);
-
-                auto & result = counter.bulk_count(sketch.get_underlying_container());
-
-                for (auto && count : result)
-                {
-                    auto const dist = compute_distance(count);
-
-                    result_string += std::to_string(dist);
-                    result_string += '\t';
-                }
             }
 
-            result_string.back() = '\n';
+            auto & result = counter.bulk_count(sketch.get_underlying_container());
+
+            for (auto && count : result)
+            {
+                auto const dist = compute_distance(count);
+
+                result_string += '\t';
+                result_string += std::to_string(dist);
+            }
+
+            result_string += '\n';
             synced_out.write(result_string);
         }
     };

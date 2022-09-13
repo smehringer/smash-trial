@@ -22,7 +22,7 @@ void init_sketch(range_t && input, uint8_t const kmer_size, uint32_t const sketc
     auto hashes_it = hashes.begin();
 
     // initialise sketch with the first hashes
-    for (size_t i = 0; i < sketch_size && i < hashes.size(); ++i, ++hashes_it)
+    for (size_t i = 0; i < sketch_size && hashes_it != hashes.end(); ++i, ++hashes_it)
         sketch.push(*hashes_it);
 
     while (hashes_it != hashes.end())
@@ -32,6 +32,7 @@ void init_sketch(range_t && input, uint8_t const kmer_size, uint32_t const sketc
             sketch.pop();
             sketch.push(*hashes_it);
         }
+        ++hashes_it;
     }
 }
 
@@ -48,6 +49,7 @@ void add_to_sketch(range_t && input, uint8_t const kmer_size, my_priority_queue<
             sketch.pop();
             sketch.push(*hashes_it);
         }
+        ++hashes_it;
     }
 }
 

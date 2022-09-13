@@ -16,6 +16,7 @@ int parse_command_line(smash_options & options, int const argc, char const * con
     parser.add_option(options.output_file, 'o', "output", "The file for the distances matrix");
     parser.add_option(options.kmer_size, 'k', "kemr-size", "The kmer size.");
     parser.add_option(options.sketch_size, 's', "sketch-size", "The sketch size.");
+    parser.add_flag(options.no_sketching, 'd', "disable-sketching", "this will compute the true jaqquard distance.");
 
     try
     {
