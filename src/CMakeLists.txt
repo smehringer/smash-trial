@@ -13,5 +13,12 @@ target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC "${PROJECT_NAME}_interface")
 target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC raptor_interface)
 target_compile_definitions ("${PROJECT_NAME}_lib" PUBLIC "-DRAPTOR_HIBF_HAS_COUNT=1")
 
+# An object library (without main) to be used in multiple targets.
+add_library ("${PROJECT_NAME}_lib_j" STATIC jaqquard_dist.cpp)
+target_link_libraries ("${PROJECT_NAME}_lib_j" PUBLIC "${PROJECT_NAME}_interface")
+target_link_libraries ("${PROJECT_NAME}_lib_j" PUBLIC raptor_interface)
+target_compile_definitions ("${PROJECT_NAME}_lib_j" PUBLIC "-DRAPTOR_HIBF_HAS_COUNT=1")
+
 add_executable ("${PROJECT_NAME}" main.cpp)
 target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib")
+target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib_j")

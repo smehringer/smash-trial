@@ -13,6 +13,7 @@ struct smash_options
     uint8_t kmer_size{32};
     uint8_t threads{32};
     bool write_time{true};
+    bool no_sketching{false};
 
     // data
     std::vector<std::string> files;

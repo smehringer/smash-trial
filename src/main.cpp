@@ -3,6 +3,7 @@
 #include <seqan3/argument_parser/all.hpp>
 
 #include "search.hpp"
+#include "jaqquard_dist.hpp"
 
 int parse_command_line(smash_options & options, int const argc, char const * const * argv)
 {
@@ -42,7 +43,10 @@ int main(int argc, char ** argv)
     while (std::getline(in, line))
         options.files.push_back(line);
 
-    search(options);
+    if (options.no_sketching)
+        jaqquard_dist(options);
+    else
+        search(options);
 
     return 0;
 }
