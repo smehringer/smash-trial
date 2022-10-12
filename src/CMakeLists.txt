@@ -27,3 +27,6 @@ add_executable (matrixify_mash_output matrixify_mash_output.cpp)
 target_link_libraries (matrixify_mash_output PRIVATE "${PROJECT_NAME}_lib")
 target_link_libraries (matrixify_mash_output PRIVATE "${PROJECT_NAME}_lib_j")
 
+add_executable (sort_matrix sort_matrix.cpp)
+target_link_libraries (sort_matrix PRIVATE "${PROJECT_NAME}_lib")
+target_link_libraries (sort_matrix PRIVATE "${PROJECT_NAME}_lib_j")
