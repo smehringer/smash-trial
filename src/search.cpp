@@ -73,7 +73,7 @@ void search(smash_options const & options)
 
             for (auto && count : result)
             {
-                auto const dist = compute_distance(count);
+                auto const dist = compute_distance(count, options.sketch_size);
 
                 result_string += '\t';
                 result_string += std::to_string(dist);
