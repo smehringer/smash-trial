@@ -43,17 +43,17 @@ void jaqquard_dist(smash_options const & options)
         for (auto const & filenames : index.bin_path())
         {
             line += '\t';
+            std::set<uint64_t> hashes{};
             for (auto const & filename : filenames)
             {
-                std::set<uint64_t> hashes{};
                 for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
                     for (auto const hash : rec.sequence() | get_kmers)
                         hashes.insert(hash);
-                sizes.push_back(hashes.size());
 
                 line += filename;
                 line += ';';
             }
+            sizes.push_back(hashes.size());
         }
         line += '\n';
         synced_out << line;
@@ -76,10 +76,15 @@ void jaqquard_dist(smash_options const & options)
                 for (auto const hash : rec.sequence() | get_kmers)
                     hashes.insert(hash);
 
+            // For all hashes computed for current `filename` count their occurence for each user bin in the HIBF
             auto & result = counter.bulk_count(hashes);
 
             for (size_t i = 0; i < result.size(); ++i)
             {
+                /* A intersect B    =                  result[i]               // #shared-hashes
+                 * -------------    =   ------------------------------------
+                 *   A union B      =   sizes[i] + hashes.size() - result[i]  // #hashes-A + #hashes-B - #shared-hashes
+                 */
                 auto const dist = static_cast<double>(result[i]) / (sizes[i] + hashes.size() - result[i]);
 
                 result_string += '\t';
