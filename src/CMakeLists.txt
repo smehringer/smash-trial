@@ -22,3 +22,8 @@ target_compile_definitions ("${PROJECT_NAME}_lib_j" PUBLIC "-DRAPTOR_HIBF_HAS_CO
 add_executable ("${PROJECT_NAME}" main.cpp)
 target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib")
 target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib_j")
+
+add_executable (matrixify_mash_output matrixify_mash_output.cpp)
+target_link_libraries (matrixify_mash_output PRIVATE "${PROJECT_NAME}_lib")
+target_link_libraries (matrixify_mash_output PRIVATE "${PROJECT_NAME}_lib_j")
+
