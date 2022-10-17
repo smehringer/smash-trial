@@ -51,7 +51,7 @@ void search(smash_options const & options)
 
     auto worker = [&](size_t const start, size_t const end)
     {
-        auto counter = index.ibf().template counting_agent<uint16_t>();
+        auto counter = index.ibf().template counting_agent<uint32_t>();
 
         std::string result_string{};
 
