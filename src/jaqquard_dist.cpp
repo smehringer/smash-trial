@@ -30,7 +30,7 @@ void jaqquard_dist(smash_options const & options)
     };
     auto cereal_handle = std::async(std::launch::async, cereal_worker);
 
-    std::vector<std::string> filenames{};
+    std::vector<std::string> filenames_chunk_buffer{};
     std::vector<uint64_t> sizes{};
 
     raptor::sync_out synced_out{options.output_file};
@@ -65,7 +65,7 @@ void jaqquard_dist(smash_options const & options)
 
         std::string result_string{};
 
-        for (auto && filename : filenames | seqan3::views::slice(start, end))
+        for (auto && filename : filenames_chunk_buffer | seqan3::views::slice(start, end))
         {
             result_string.clear();
             result_string += filename;
@@ -97,17 +97,17 @@ void jaqquard_dist(smash_options const & options)
     };
 
     std::cerr << "Computing distances..." << std::endl;
-    for (auto && chunked_files : options.files | seqan3::views::chunk((1ULL << 20) * 10))
+    for (auto && chunk : options.files | seqan3::views::chunk((1ULL << 20) * 10))
     {
-        filenames.clear();
+        filenames_chunk_buffer.clear();
         auto start = std::chrono::high_resolution_clock::now();
-        std::ranges::move(chunked_files, std::back_inserter(filenames));
+        std::ranges::move(chunk, std::back_inserter(filenames_chunk_buffer));
         auto end = std::chrono::high_resolution_clock::now();
         reads_io_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
 
         cereal_handle.wait();
 
-        raptor::do_parallel(worker, filenames.size(), options.threads, compute_time);
+        raptor::do_parallel(worker, filenames_chunk_buffer.size(), options.threads, compute_time);
     }
 
     // GCOVR_EXCL_START
