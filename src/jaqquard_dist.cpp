@@ -30,6 +30,7 @@ void jaqquard_dist(smash_options const & options)
     };
     auto cereal_handle = std::async(std::launch::async, cereal_worker);
 
+    std::vector<std::string> all_filenames{};
     std::vector<std::string> filenames_chunk_buffer{};
     std::vector<uint64_t> sizes{};
 
@@ -51,7 +52,9 @@ void jaqquard_dist(smash_options const & options)
                         hashes.insert(hash);
 
                 line += filename;
-                line += ';';
+                // line += ';'; uncomment this if more than one file per user bin can be handles
+                all_filenames.push_back(filename); // this is only valid if there is only one filename per user bin
+                assert(filenames.size() == 1);
             }
             sizes.push_back(hashes.size());
         }
@@ -97,7 +100,10 @@ void jaqquard_dist(smash_options const & options)
     };
 
     std::cerr << "Computing distances..." << std::endl;
-    for (auto && chunk : options.files | seqan3::views::chunk((1ULL << 20) * 10))
+    std::cerr << "Note: option -i/--input is ignored. It is assumed that you'd like to compute the jaquard of "
+              << "all against all sequences which are stored in the index. So the sequences from the index are taken "
+              << "directly" << std::endl;
+    for (auto && chunk : all_filenames | seqan3::views::chunk((1ULL << 20) * 10))
     {
         filenames_chunk_buffer.clear();
         auto start = std::chrono::high_resolution_clock::now();
