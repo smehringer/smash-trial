@@ -8,6 +8,8 @@
 #include <raptor/search/sync_out.hpp>
 #include <raptor/adjust_seed.hpp>
 
+#include <robin_hood.h>
+
 #include "jaqquard_dist.hpp"
 #include "options.hpp"
 
@@ -49,7 +51,7 @@ void jaqquard_dist(smash_options const & options)
         for (auto const & filenames : index.bin_path())
         {
             line += '\t';
-            std::set<uint64_t> hashes{};
+            robin_hood::unordered_set<uint64_t> hashes{};
             for (auto const & filename : filenames)
             {
                 for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
@@ -78,7 +80,7 @@ void jaqquard_dist(smash_options const & options)
             result_string.clear();
             result_string += filename;
 
-            std::set<uint64_t> hashes{};
+            robin_hood::unordered_set<uint64_t> hashes{};
 
             for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
                 for (auto const hash : rec.sequence() | get_kmers)
