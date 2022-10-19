@@ -1,10 +1,12 @@
 #include <seqan3/search/views/kmer_hash.hpp>
+#include <seqan3/search/views/minimiser_hash.hpp>
 
 #include <raptor/adjust_seed.hpp>
 #include <raptor/dna4_traits.hpp>
 #include <raptor/search/do_parallel.hpp>
 #include <raptor/search/load_index.hpp>
 #include <raptor/search/sync_out.hpp>
+#include <raptor/adjust_seed.hpp>
 
 #include "jaqquard_dist.hpp"
 #include "options.hpp"
@@ -18,7 +20,10 @@ void jaqquard_dist(smash_options const & options)
 {
     auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
 
-    auto get_kmers = seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}});
+    // auto get_kmers = seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}});
+    auto get_kmers = seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}},
+                                                   seqan3::window_size{options.kmer_size},
+                                                   seqan3::seed{raptor::adjust_seed(options.kmer_size)});
 
     double index_io_time{0.0};
     double reads_io_time{0.0};
