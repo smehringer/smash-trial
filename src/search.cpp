@@ -24,11 +24,7 @@ void search(smash_options const & options)
     double reads_io_time{0.0};
     double compute_time{0.0};
 
-    auto cereal_worker = [&]()
-    {
-        raptor::load_index(index, options.index_file, index_io_time);
-    };
-    auto cereal_handle = std::async(std::launch::async, cereal_worker);
+    raptor::load_index(index, options.index_file, index_io_time);
 
     std::vector<std::string> filenames{};
 
@@ -91,8 +87,6 @@ void search(smash_options const & options)
         std::ranges::move(chunked_files, std::back_inserter(filenames));
         auto end = std::chrono::high_resolution_clock::now();
         reads_io_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-
-        cereal_handle.wait();
 
         raptor::do_parallel(worker, filenames.size(), options.threads, compute_time);
     }
