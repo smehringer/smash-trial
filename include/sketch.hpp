@@ -4,6 +4,9 @@
 #include <queue>
 
 #include <seqan3/search/views/kmer_hash.hpp>
+#include <seqan3/search/views/minimiser_hash.hpp>
+
+#include <raptor/adjust_seed.hpp>
 
 template <typename T>
 struct my_priority_queue : public std::priority_queue<T>
@@ -14,11 +17,12 @@ struct my_priority_queue : public std::priority_queue<T>
     }
 };
 
-
 template <typename range_t>
 void init_sketch(range_t && input, uint8_t const kmer_size, uint32_t const sketch_size, my_priority_queue<uint64_t> & sketch)
 {
-    auto hashes = input | seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{kmer_size}});
+    auto hashes = input | seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{kmer_size}},
+                                                        seqan3::window_size{kmer_size},
+                                                        seqan3::seed{raptor::adjust_seed(kmer_size)});
     auto hashes_it = hashes.begin();
 
     // initialise sketch with the first hashes
@@ -39,7 +43,9 @@ void init_sketch(range_t && input, uint8_t const kmer_size, uint32_t const sketc
 template <typename range_t>
 void add_to_sketch(range_t && input, uint8_t const kmer_size, my_priority_queue<uint64_t> & sketch)
 {
-    auto hashes = input | seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{kmer_size}});
+    auto hashes = input | seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{kmer_size}},
+                                                        seqan3::window_size{kmer_size},
+                                                        seqan3::seed{raptor::adjust_seed(kmer_size)});
     auto hashes_it = hashes.begin();
 
     while (hashes_it != hashes.end())
@@ -59,7 +65,9 @@ std::vector<uint64_t> sketch_min_hash(range_t && input, uint8_t const kmer_size,
 {
     my_priority_queue<uint64_t> sketch;
 
-    auto hashes = input | seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{kmer_size}});
+    auto hashes = input | seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{kmer_size}},
+                                                        seqan3::window_size{kmer_size},
+                                                        seqan3::seed{raptor::adjust_seed(kmer_size)});
     auto hashes_it = hashes.begin();
 
     // initialise sketch with the first hashes
