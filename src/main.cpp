@@ -18,6 +18,7 @@ int parse_command_line(smash_options & options, int const argc, char const * con
     parser.add_option(options.kmer_size, 'k', "kemr-size", "The kmer size.");
     parser.add_option(options.sketch_size, 's', "sketch-size", "The sketch size.");
     parser.add_option(options.threads, 't', "threads", "The number of threads to use.");
+    parser.add_option(options.fpr, '\0', "fpr", "The fpr used when building the index.", seqan3::option_spec::required);
     parser.add_flag(options.no_sketching, 'd', "disable-sketching", "this will compute the true jaqquard distance.");
 
     try
@@ -33,16 +34,50 @@ int parse_command_line(smash_options & options, int const argc, char const * con
     return 0;
 }
 
+inline auto read_input_file(std::string const & filename,
+                            std::vector<std::string> & files,
+                            robin_hood::unordered_map<std::string, uint64_t> & sizes)
+{
+    std::ifstream file_in{filename};
+
+    if (!file_in.good())
+        throw std::runtime_error{"Could not open file " + filename};
+
+    std::string line;
+    while (std::getline(file_in, line) && line[0] == '#'); // skip comments
+
+    do
+    {
+        // read filename
+        char const * buffer = line.c_str();
+        auto ptr = &buffer[0];
+        auto const buffer_end = ptr + line.size();
+
+        if (line.empty())
+            continue;
+
+        while (ptr != buffer_end && *ptr != '\t') ++ptr;
+        files.push_back(std::string(&buffer[0], ptr));
+
+        if (ptr == buffer_end) // only file info, no kmer info
+            throw std::runtime_error{"Your file only contains sequence names but no kmer counts."
+                                     "Offending line: '" + line + "'."};
+
+        // read kmer_count
+        ++ptr; // skip tab
+        uint64_t tmp;
+        std::from_chars(ptr, buffer_end, tmp);
+        sizes.emplace(files.back(), tmp);
+    }
+    while (std::getline(file_in, line));
+}
+
 int main(int argc, char ** argv)
 {
     smash_options options{};
     parse_command_line(options, argc, argv);
 
-    std::string line;
-    std::ifstream in{options.input_file};
-
-    while (std::getline(in, line))
-        options.files.push_back(line);
+    read_input_file(options.input_file, options.files, options.sizes);
 
     if (options.no_sketching)
         jaqquard_dist(options);

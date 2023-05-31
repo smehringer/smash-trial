@@ -43,6 +43,8 @@ void jaqquard_dist(smash_options const & options)
 
     raptor::sync_out synced_out{options.output_file};
 
+    raptor::sync_out synced_out_mash{options.output_file.string() + ".mash"};
+
     cereal_handle.wait();
 
     std::cerr << "Writing header line and computing reference sizes..." << std::endl;
@@ -95,10 +97,15 @@ void jaqquard_dist(smash_options const & options)
                  * -------------    =   ------------------------------------
                  *   A union B      =   sizes[i] + hashes.size() - result[i]  // #hashes-A + #hashes-B - #shared-hashes
                  */
-                auto const dist = static_cast<double>(result[i]) / (sizes[i] + hashes.size() - result[i]);
+
+                auto const dist = static_cast<double>(result[i]) / (sizes[i] + hashes.size() - result[i]) - options.fpr;
 
                 result_string += '\t';
                 result_string += std::to_string(dist);
+
+                synced_out_mash.write(filename + "\t" + index.bin_path()[i][0] + "\t" +
+                                      std::to_string(result[i]) + "/" + std::to_string(hashes.size()) + "\t" +
+                                      std::to_string(result[i]) + "/" + std::to_string(sizes[i]) + "\n");
             }
 
             result_string += '\n';

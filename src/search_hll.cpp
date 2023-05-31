@@ -16,7 +16,7 @@ struct my_traits : seqan3::sequence_file_input_default_traits_dna
     using sequence_alphabet = seqan3::dna4; // instead of dna5
 };
 
-void search(smash_options const & options)
+void search_hll(smash_options const & options)
 {
     auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
 
@@ -67,13 +67,9 @@ void search(smash_options const & options)
 
             auto & result = counter.bulk_count(sketch.get_underlying_container());
 
-            for (size_t i = 0; i < result.size(); ++i)
+            for (auto && count : result)
             {
-                auto const dist = compute_distance(result[i],
-                                                   options.sketch_size,
-                                                   options.fpr,
-                                                   options.sizes.at(filename),
-                                                   options.sizes.at(index.bin_path()[i][0]));
+                auto const dist = compute_distance(count, options.sketch_size);
 
                 result_string += '\t';
                 result_string += std::to_string(dist);
