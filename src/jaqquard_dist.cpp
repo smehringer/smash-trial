@@ -1,6 +1,7 @@
 #include <seqan3/search/views/kmer_hash.hpp>
 #include <seqan3/search/views/minimiser_hash.hpp>
 
+#include <raptor/argument_parsing/search_arguments.hpp>
 #include <raptor/adjust_seed.hpp>
 #include <raptor/dna4_traits.hpp>
 #include <raptor/search/do_parallel.hpp>
@@ -18,66 +19,93 @@ struct my_traits : seqan3::sequence_file_input_default_traits_dna
     using sequence_alphabet = seqan3::dna4; // instead of dna5
 };
 
-void jaqquard_dist(smash_options const & options)
+std::vector<uint64_t> compute_sizes(std::vector<std::string> const & filenames,
+                                    smash_options const & options)
 {
-    auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
+    std::vector<uint64_t> sizes{};
+    robin_hood::unordered_set<uint64_t> hashes{};
 
-    // auto get_kmers = seqan3::views::kmer_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}});
     auto get_kmers = seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}},
                                                    seqan3::window_size{options.kmer_size},
                                                    seqan3::seed{raptor::adjust_seed(options.kmer_size)});
 
-    double index_io_time{0.0};
-    double reads_io_time{0.0};
-    double compute_time{0.0};
-
-    auto cereal_worker = [&]()
+    for (auto const & filename : filenames)
     {
-        raptor::load_index(index, options.index_file, index_io_time);
-    };
-    auto cereal_handle = std::async(std::launch::async, cereal_worker);
+        hashes.clear();
+        for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
+            for (auto const hash : rec.sequence() | get_kmers)
+                hashes.insert(hash);
 
-    std::vector<std::string> all_filenames{};
-    std::vector<std::string> filenames_chunk_buffer{};
-    std::vector<uint64_t> sizes{};
-
-    raptor::sync_out synced_out{options.output_file};
-
-    raptor::sync_out synced_out_mash{options.output_file.string() + ".mash"};
-
-    cereal_handle.wait();
-
-    std::cerr << "Writing header line and computing reference sizes..." << std::endl;
-    { // write header line
-        std::string line{"#filenames"};
-        for (auto const & filenames : index.bin_path())
-        {
-            line += '\t';
-            robin_hood::unordered_set<uint64_t> hashes{};
-            for (auto const & filename : filenames)
-            {
-                for (auto && rec : seqan3::sequence_file_input<my_traits>{filename})
-                    for (auto const hash : rec.sequence() | get_kmers)
-                        hashes.insert(hash);
-
-                line += filename;
-                // line += ';'; uncomment this if more than one file per user bin can be handles
-                all_filenames.push_back(filename); // this is only valid if there is only one filename per user bin
-                assert(filenames.size() == 1);
-            }
-            sizes.push_back(hashes.size());
-        }
-        line += '\n';
-        synced_out << line;
+        sizes.push_back(hashes.size());
+        return sizes;
     }
 
-    auto worker = [&](size_t const start, size_t const end)
+    return sizes;
+}
+
+std::vector<std::string> get_index_filenames(raptor::raptor_index<raptor::index_structure::hibf> const & index)
+{
+    std::vector<std::string> filenames;
+    for (auto const & user_bin_paths : index.bin_path())
     {
+        if (user_bin_paths.size() != 1)
+            throw std::runtime_error{"No multi file user bins allowed yet;"};
+        filenames.push_back(user_bin_paths.front());
+    }
+    return filenames;
+}
+
+void jaqquard_dist(smash_options const & options)
+{
+    auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
+
+    auto get_kmers = seqan3::views::minimiser_hash(seqan3::shape{seqan3::ungapped{options.kmer_size}},
+                                                   seqan3::window_size{options.kmer_size},
+                                                   seqan3::seed{raptor::adjust_seed(options.kmer_size)});
+
+    raptor::search_arguments arguments{.index_file = options.index_file,
+                                       .out_file = options.output_file};
+
+    auto cereal_future = std::async(std::launch::async,
+                                    [&]()
+                                    {
+                                        load_index(index, arguments);
+                                    });
+
+
+    std::cerr << "Computing query sizes..." << std::endl;
+    std::vector<uint64_t> const option_files_sizes = compute_sizes(options.files, options);
+
+    cereal_future.get(); // need the index for index.bin_path()
+    std::vector<std::string> const index_filenames = get_index_filenames(index);
+
+    std::cerr << "Computing index user bin sizes..." << std::endl;
+    std::vector<uint64_t> const index_filename_sizes = compute_sizes(index_filenames, options);
+
+    // raptor::sync_out synced_out_mash{options.output_file.string() + ".mash"};
+    raptor::sync_out synced_out{arguments};
+
+    std::cerr << "Writing header line..." << std::endl;
+    { // write header line
+        std::string line{"#filenames"};
+        for (auto const & filename : index_filenames)
+        {
+            line += '\t';
+            line += filename;
+        }
+        line += '\n';
+        synced_out.write(line);
+    }
+
+    std::cerr << "Computing distances..." << std::endl;
+
+    // auto worker = [&](size_t const start, size_t const end)
+    // {
         auto counter = index.ibf().template counting_agent<uint32_t>();
 
         std::string result_string{};
 
-        for (auto && filename : filenames_chunk_buffer | seqan3::views::slice(start, end))
+        for (auto const & filename : options.files /* | seqan3::views::slice(start, end) */)
         {
             result_string.clear();
             result_string += filename;
@@ -95,50 +123,23 @@ void jaqquard_dist(smash_options const & options)
             {
                 /* A intersect B    =                  result[i]               // #shared-hashes
                  * -------------    =   ------------------------------------
-                 *   A union B      =   sizes[i] + hashes.size() - result[i]  // #hashes-A + #hashes-B - #shared-hashes
+                 *   A union B      =   index_filename_sizes[i] + hashes.size() - result[i]  // #hashes-A + #hashes-B - #shared-hashes
                  */
 
-                auto const dist = static_cast<double>(result[i]) / (sizes[i] + hashes.size() - result[i]) - options.fpr;
+                auto const dist = static_cast<double>(result[i]) / (index_filename_sizes[i] + hashes.size() - result[i]) - options.fpr;
 
                 result_string += '\t';
                 result_string += std::to_string(dist);
 
-                synced_out_mash.write(filename + "\t" + index.bin_path()[i][0] + "\t" +
-                                      std::to_string(result[i]) + "/" + std::to_string(hashes.size()) + "\t" +
-                                      std::to_string(result[i]) + "/" + std::to_string(sizes[i]) + "\n");
+                // synced_out_mash.write(filename + "\t" + index.bin_path()[i][0] + "\t" +
+                //                       std::to_string(result[i]) + "/" + std::to_string(hashes.size()) + "\t" +
+                //                       std::to_string(result[i]) + "/" + std::to_string(index_filename_sizes[i]) + "\n");
             }
 
             result_string += '\n';
             synced_out.write(result_string);
         }
-    };
+    // };
 
-    std::cerr << "Computing distances..." << std::endl;
-    std::cerr << "Note: option -i/--input is ignored. It is assumed that you'd like to compute the jaquard of "
-              << "all against all sequences which are stored in the index. So the sequences from the index are taken "
-              << "directly" << std::endl;
-    for (auto && chunk : all_filenames | seqan3::views::chunk((1ULL << 20) * 10))
-    {
-        filenames_chunk_buffer.clear();
-        auto start = std::chrono::high_resolution_clock::now();
-        std::ranges::move(chunk, std::back_inserter(filenames_chunk_buffer));
-        auto end = std::chrono::high_resolution_clock::now();
-        reads_io_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-
-        cereal_handle.wait();
-
-        raptor::do_parallel(worker, filenames_chunk_buffer.size(), options.threads, compute_time);
-    }
-
-    // GCOVR_EXCL_START
-    if (options.write_time)
-    {
-        std::filesystem::path file_path{options.output_file};
-        file_path += ".time";
-        std::ofstream file_handle{file_path};
-        file_handle << "Index I/O\tReads I/O\tCompute\n";
-        file_handle << std::fixed << std::setprecision(2) << index_io_time << '\t' << reads_io_time << '\t'
-                    << compute_time;
-    }
-    // GCOVR_EXCL_STOP
+    // raptor::do_parallel(worker, options.files.size(), options.threads);
 }

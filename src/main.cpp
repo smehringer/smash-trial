@@ -35,8 +35,7 @@ int parse_command_line(smash_options & options, int const argc, char const * con
 }
 
 inline auto read_input_file(std::string const & filename,
-                            std::vector<std::string> & files,
-                            robin_hood::unordered_map<std::string, uint64_t> & sizes)
+                            std::vector<std::string> & files)
 {
     std::ifstream file_in{filename};
 
@@ -58,16 +57,6 @@ inline auto read_input_file(std::string const & filename,
 
         while (ptr != buffer_end && *ptr != '\t') ++ptr;
         files.push_back(std::string(&buffer[0], ptr));
-
-        if (ptr == buffer_end) // only file info, no kmer info
-            throw std::runtime_error{"Your file only contains sequence names but no kmer counts."
-                                     "Offending line: '" + line + "'."};
-
-        // read kmer_count
-        ++ptr; // skip tab
-        uint64_t tmp;
-        std::from_chars(ptr, buffer_end, tmp);
-        sizes.emplace(files.back(), tmp);
     }
     while (std::getline(file_in, line));
 }
@@ -77,7 +66,7 @@ int main(int argc, char ** argv)
     smash_options options{};
     parse_command_line(options, argc, argv);
 
-    read_input_file(options.input_file, options.files, options.sizes);
+    read_input_file(options.input_file, options.files);
 
     if (options.no_sketching)
         jaqquard_dist(options);

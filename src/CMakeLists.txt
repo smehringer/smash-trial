@@ -30,3 +30,7 @@ target_link_libraries (matrixify_mash_output PRIVATE "${PROJECT_NAME}_lib_j")
 add_executable (sort_matrix sort_matrix.cpp)
 target_link_libraries (sort_matrix PRIVATE "${PROJECT_NAME}_lib")
 target_link_libraries (sort_matrix PRIVATE "${PROJECT_NAME}_lib_j")
+
+add_executable (mean_squared_error mean_squared_error.cpp)
+target_link_libraries (mean_squared_error PRIVATE "${PROJECT_NAME}_lib")
+target_link_libraries (mean_squared_error PRIVATE "${PROJECT_NAME}_lib_j")

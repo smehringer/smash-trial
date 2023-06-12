@@ -1,5 +1,10 @@
 #include <seqan3/search/views/kmer_hash.hpp>
 
+#include <chopper/sketch/hyperloglog.hpp>
+#include <chopper/sketch/execute.hpp>
+#include <chopper/sketch/estimate_kmer_counts.hpp>
+
+#include <raptor/argument_parsing/search_arguments.hpp>
 #include <raptor/adjust_seed.hpp>
 #include <raptor/dna4_traits.hpp>
 #include <raptor/search/do_parallel.hpp>
@@ -16,19 +21,40 @@ struct my_traits : seqan3::sequence_file_input_default_traits_dna
     using sequence_alphabet = seqan3::dna4; // instead of dna5
 };
 
-void search(smash_options const & options)
+void search(smash_options & options)
 {
     auto index = raptor::raptor_index<raptor::index_structure::hibf>{};
 
-    double index_io_time{0.0};
-    double reads_io_time{0.0};
-    double compute_time{0.0};
+    raptor::search_arguments arguments{.index_file = options.index_file,
+                                       .out_file = options.output_file};
 
-    raptor::load_index(index, options.index_file, index_io_time);
+    raptor::load_index(index, arguments);
 
-    std::vector<std::string> filenames{};
+    {
+        std::vector<std::string> files = options.files;
+        std::vector<chopper::sketch::hyperloglog> sketches{};
 
-    raptor::sync_out synced_out{options.output_file};
+        chopper::configuration config{.data_file = options.input_file,
+                                    .k = options.kmer_size,
+                                    .disable_sketch_output = true,
+                                    .threads = options.threads};
+
+        for (size_t i = 0; i < index.bin_path().size(); ++i)
+        {
+            files.push_back(index.bin_path()[i][0]);
+            if (index.bin_path()[i].size() > 1)
+                throw std::runtime_error{"Multi file user bins not supported yet."};
+        }
+
+        chopper::sketch::execute(config, files, sketches);
+        std::vector<size_t> kmer_counts{};
+        chopper::sketch::estimate_kmer_counts(sketches, kmer_counts);
+
+        for (size_t i = 0; i < files.size(); ++i)
+            options.sizes.emplace(files[i], static_cast<uint64_t>(kmer_counts[i]));
+    }
+
+    raptor::sync_out synced_out{arguments};
 
     { // write header line
         std::string line{"#filenames"};
@@ -42,8 +68,10 @@ void search(smash_options const & options)
             }
         }
         line += '\n';
-        synced_out << line;
+        synced_out.write(line);
     }
+
+    std::vector<std::string> filenames{};
 
     auto worker = [&](size_t const start, size_t const end)
     {
@@ -87,23 +115,8 @@ void search(smash_options const & options)
     for (auto && chunked_files : options.files | seqan3::views::chunk((1ULL << 20) * 10))
     {
         filenames.clear();
-        auto start = std::chrono::high_resolution_clock::now();
         std::ranges::move(chunked_files, std::back_inserter(filenames));
-        auto end = std::chrono::high_resolution_clock::now();
-        reads_io_time += std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
 
-        raptor::do_parallel(worker, filenames.size(), options.threads, compute_time);
+        raptor::do_parallel(worker, filenames.size(), options.threads);
     }
-
-    // GCOVR_EXCL_START
-    if (options.write_time)
-    {
-        std::filesystem::path file_path{options.output_file};
-        file_path += ".time";
-        std::ofstream file_handle{file_path};
-        file_handle << "Index I/O\tReads I/O\tCompute\n";
-        file_handle << std::fixed << std::setprecision(2) << index_io_time << '\t' << reads_io_time << '\t'
-                    << compute_time;
-    }
-    // GCOVR_EXCL_STOP
 }

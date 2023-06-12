@@ -28,7 +28,7 @@ set (FontBold "${Esc}[1m")
 set (FontReset "${Esc}[m")
 
 # Add SeqAn3 and Raptor.
-set (RAPTOR_SUBMODULES_DIR "${CMAKE_CURRENT_LIST_DIR}/lib/raptor/lib")
+set (RAPTOR_SUBMODULES_DIR "${CMAKE_CURRENT_LIST_DIR}/raptor/lib")
 set (RAPTOR_BUILD_DOC
      OFF
      CACHE BOOL "Build documentation"
@@ -37,20 +37,21 @@ set (RAPTOR_BUILD_TEST
      OFF
      CACHE BOOL "Build test"
 )
-add_subdirectory (${CMAKE_CURRENT_LIST_DIR}/lib/raptor)
+add_subdirectory (${CMAKE_CURRENT_LIST_DIR}/raptor)
+#add_subdirectory (${CMAKE_CURRENT_LIST_DIR}/raptor/lib/seqan3)
 
 # Allow to include CMake scripts from seqan3.
-list (APPEND CMAKE_MODULE_PATH "${SEQAN3_CLONE_DIR}/test/cmake/")
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/raptor/lib/seqan3/test/cmake/")
 # Allow to include CMake scripts from raptor.
-list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/lib/raptor/cmake/")
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/raptor/cmake/")
 
 
-# Allow to include CMake scripts from seqan3.
-list (APPEND CMAKE_MODULE_PATH "${SEQAN3_CLONE_DIR}/test/cmake/")
+# Allow to include CMake scripts from raptor.
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/raptor/lib/seqan3/test/cmake/")
 
 # Use ccache.
-include (raptor_require_ccache)
-raptor_require_ccache ()
+#include (raptor_require_ccache)
+#raptor_require_ccache ()
 
 # Add the application.
 add_subdirectory (src)

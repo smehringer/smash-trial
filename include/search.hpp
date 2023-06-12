@@ -2,4 +2,4 @@
 
 #include "options.hpp"
 
-void search(smash_options const & options);
+void search(smash_options & options);

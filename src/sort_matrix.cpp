@@ -20,15 +20,9 @@ void apply_permutation(std::vector<size_t> const & permutation, random_access_ra
     }
 }
 
-int main(int /* argc */, char ** argv)
+std::vector<std::string> read_column_names(std::ifstream & fin)
 {
-    std::ifstream fin{argv[1]};
-
     std::vector<std::string> ids{};
-    robin_hood::unordered_map<std::string, uint64_t> row_names;
-
-    std::vector<std::vector<double>> matrix;
-
     std::string line;
 
     // read header line for column names
@@ -51,14 +45,30 @@ int main(int /* argc */, char ** argv)
         }
     }
 
+    return ids;
+}
+
+std::vector<size_t> get_permutation(std::vector<std::string> const & ids)
+{
     std::vector<size_t> col_permutation{};
     col_permutation.reserve(ids.size());
     for (size_t i = 0; i < ids.size(); ++i)
         col_permutation.push_back(i);
     std::sort(col_permutation.begin(), col_permutation.end(), [&ids](auto const & i1, auto const & i2){ return ids[i1] < ids[i2]; });
+    return col_permutation;
+}
 
-    uint64_t row_counter{0};
+int main(int /* argc */, char ** argv)
+{
+    std::ifstream fin{argv[1]};
+
+    std::vector<std::string> ids = read_column_names(fin);
+    std::vector<size_t> const col_permutation = get_permutation(ids);
+
+    std::vector<std::string> row_names;
     std::vector<std::string> rows;
+
+    std::string line;
     while (std::getline(fin, line))
     {
         auto splitted_line = line | std::views::split('\t');
@@ -66,8 +76,7 @@ int main(int /* argc */, char ** argv)
 
         std::string name{};
         std::ranges::copy(*it, std::back_inserter(name));
-        row_names.emplace(name, row_counter);
-        ++row_counter;
+        row_names.push_back(name);
         ++it;
 
         std::string number{};
@@ -103,6 +112,8 @@ int main(int /* argc */, char ** argv)
         std::cout << '\t' << id;
     std::cout << '\n';
 
-    for (auto const & id : ids)
-        std::cout << rows[row_names.at(id)];
+    auto const & row_permutation = get_permutation(row_names);
+    apply_permutation(row_permutation, rows);
+    for (auto const & row : rows)
+        std::cout << row;
 }
