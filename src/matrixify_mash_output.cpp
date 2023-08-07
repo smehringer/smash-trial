@@ -7,99 +7,100 @@
 
 #include <robin_hood.h>
 
+struct mash_data
+{
+    std::string first{};
+    std::string second{};
+    double dist{0.0};
+};
+
+mash_data parse_mash_line(std::string const & line)
+{
+    mash_data result{};
+    auto splitted_line = line | std::views::split('\t');
+    auto it = splitted_line.begin();
+
+    std::ranges::copy(*it, std::back_inserter(result.first));
+    ++it;
+    std::ranges::copy(*it, std::back_inserter(result.second));
+    ++it;
+    ++it;
+    ++it;
+    std::string numbers_str{};
+    std::ranges::copy(*it, std::back_inserter(numbers_str));
+
+    double nominator{};
+    double denominator{};
+
+    auto res = std::from_chars(numbers_str.data(), numbers_str.data() + numbers_str.size(), nominator);
+    ++res.ptr;
+    res = std::from_chars(res.ptr, numbers_str.data() + numbers_str.size(), denominator);
+
+    result.dist = nominator / denominator;
+
+    return result;
+}
+
+std::vector<mash_data> read_and_sort_native_mash_file(std::string const & filename)
+{
+    std::vector<mash_data> mash_lines;
+
+    std::ifstream fin{filename};
+    std::string line;
+
+    while (std::getline(fin, line))
+        mash_lines.push_back(parse_mash_line(line));
+
+    // sort by second column and then by first column
+    std::sort(mash_lines.begin(), mash_lines.end(),
+              [](auto const & c1, auto const & c2)
+              {
+                  if (c1.second == c2.second)
+                      return c1.first < c2.first;
+                  else
+                      return c1.second < c2.second;
+              });
+
+    return mash_lines;
+}
+
+void write_header_line(std::vector<mash_data> const & mash_lines)
+{
+    std::string const current = mash_lines[0].second;
+
+    std::cout << "#filenames";
+
+    for (mash_data const & mash_output : mash_lines)
+    {
+        if (current == mash_output.second)
+            std::cout << '\t' << mash_output.first;
+        else
+            break;
+    }
+    std::cout << '\n';
+}
+
 int main(int /* argc */, char ** argv)
 {
-    std::ifstream fin{argv[1]};
+    auto const & mash_lines = read_and_sort_native_mash_file(argv[1]);
+    assert(!mash_lines.empty());
 
-    robin_hood::unordered_map<std::string, uint64_t> names;
+    write_header_line(mash_lines);
 
-    std::vector<std::vector<double>> matrix;
+    std::string current = mash_lines[0].second;
+    std::cout << current;
 
-    std::string line;
-    uint64_t counter{0};
-    while (std::getline(fin, line))
+    for (mash_data const & mash_output : mash_lines)
     {
-        auto splitted_line = line | std::views::split('\t');
-        auto it = splitted_line.begin();
-
-        std::string first{};
-        std::ranges::copy(*it, std::back_inserter(first));
-        ++it;
-        std::string second{};
-        std::ranges::copy(*it, std::back_inserter(second));
-        ++it;
-        ++it;
-        ++it;
-        std::string numbers_str{};
-        std::ranges::copy(*it, std::back_inserter(numbers_str));
-
-        double nominator{};
-        double denominator{};
-
-        auto res = std::from_chars(numbers_str.data(), numbers_str.data() + numbers_str.size(), nominator);
-        ++res.ptr;
-        res = std::from_chars(res.ptr, numbers_str.data() + numbers_str.size(), denominator);
-
-        double dist = nominator / denominator;
-
-        uint64_t column_index;
-        uint64_t row_index;
-
-        // find row_idx
-        auto row = names.find(first);
-        if (row == names.end())
+        if (current == mash_output.second)
         {
-            names[first] = counter;
-            row_index = counter;
-            for (auto & row : matrix)
-                row.push_back(0.);
-            ++counter;
-            matrix.push_back(std::vector<double>(counter, 0.));
+            std::cout << '\t' << mash_output.dist;
         }
         else
         {
-            row_index = row->second;
+            std::cout << '\n' << mash_output.second << '\t' << mash_output.dist;
+            current = mash_output.second;
         }
-
-        // find column index
-        auto col = names.find(second);
-        if (col == names.end())
-        {
-            names[first] = counter;
-            column_index = counter;
-            for (auto & row : matrix)
-                row.push_back(0.);
-            ++counter;
-            matrix.push_back(std::vector<double>(counter, 0.));
-        }
-        else
-        {
-            column_index = col->second;
-        }
-
-        assert(matrix.size() > row_index);
-        assert(matrix[row_index].size() > column_index);
-        matrix[row_index][column_index] = dist;
     }
-
-    std::vector<std::string> ids{};
-    ids.reserve(names.size());
-    for (auto & [name, idx] : names)
-        ids.push_back(name);
-
-    std::sort(ids.begin(), ids.end());
-
-    for (auto const & id1 : ids) // write header line
-        std::cout << '\t' << id1;
     std::cout << '\n';
-
-    for (auto const & id1 : ids)
-    {
-        std::cout << id1;
-        for (auto const & id2 : ids)
-        {
-            std::cout << '\t' << matrix[names.at(id1)][names.at(id2)];
-        }
-        std::cout << '\n';
-    }
 }

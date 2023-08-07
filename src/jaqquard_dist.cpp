@@ -66,17 +66,8 @@ void jaqquard_dist(smash_options const & options)
     raptor::search_arguments arguments{.index_file = options.index_file,
                                        .out_file = options.output_file};
 
-    auto cereal_future = std::async(std::launch::async,
-                                    [&]()
-                                    {
-                                        load_index(index, arguments);
-                                    });
+    load_index(index, arguments);
 
-
-    std::cerr << "Computing query sizes..." << std::endl;
-    std::vector<uint64_t> const option_files_sizes = compute_sizes(options.files, options);
-
-    cereal_future.get(); // need the index for index.bin_path()
     std::vector<std::string> const index_filenames = get_index_filenames(index);
 
     std::cerr << "Computing index user bin sizes..." << std::endl;
@@ -101,7 +92,7 @@ void jaqquard_dist(smash_options const & options)
 
     // auto worker = [&](size_t const start, size_t const end)
     // {
-        auto counter = index.ibf().template counting_agent<uint32_t>();
+        auto counter = index.template counting_agent<uint32_t>();
 
         std::string result_string{};
 
